@@ -1,0 +1,33 @@
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  /* tema claro por defeito */
+  color: #111827;
+  background-color: #f5f7fb;
+
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* reset básico */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  display: block; /* nada de flex/center aqui */
+}
+
+/* garante que a app pode ocupar a altura toda */
+#root {
+  min-height: 100vh;
+}
