@@ -1,5 +1,5 @@
 
-import type { NodeData, EdgeData } from "../types";
+import type { NodeData, EdgeData } from "../core/types";
 
 interface Props {
   nodes: NodeData[];
@@ -14,7 +14,7 @@ export function GraphView({ nodes, edges }: Props) {
       case "INFECTIVE":
         return "#4f83ff";
       case "REMOVED":
-        return "#aaaaaa";
+        return "#ff0000ff";
       default:
         return "#ffffff";
     }

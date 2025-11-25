@@ -3,10 +3,10 @@ import { useState } from "react";
 import "./App.css";
 import { ConfigPanel } from "./components/ConfigPanel";
 import { GraphView } from "./components/GraphView";
-import type { NodeData, EdgeData, SimulationConfig,Algorithm } from "./types";
-import { buildScript } from "./scriptBuilder";
-import { generateMockGraph } from "./graphMock";
+import type { NodeData, EdgeData, SimulationConfig,Algorithm } from "./core/types";
+import { buildScript } from "./core/scriptBuilder";
 import { MetricsPanel } from "./components/MetricsPanel";
+import { requestTopology } from "./services/topologyService";
 
 
 function App() {
@@ -21,24 +21,17 @@ function App() {
 
 
 
-  const handleStartSimulation = async (config: SimulationConfig) => {
-    const script = buildScript(config);
-    setLastScript(script);
+const handleStartSimulation = async (config: SimulationConfig) => {
+  const { nodes, edges } = await requestTopology(config);
 
-    const { nodes: mockNodes, edges: mockEdges } = generateMockGraph(
-      config.topology,
-      config.nodeCount
-    );
-
-    setNodes(mockNodes);
-    setEdges(mockEdges);
-    setRound(0);
-    setMessages(0);
-    setInformed(0);
-    setTotalNodes(config.nodeCount);
-    setCurrentAlgorithm(config.algorithm);
-
-  };
+  setNodes(nodes);
+  setEdges(edges);
+  setRound(0);
+  setMessages(0);
+  setInformed(0);
+  setTotalNodes(config.nodeCount);
+  setCurrentAlgorithm(config.algorithm);
+};
 
   return (
     <div className="app">
@@ -96,5 +89,3 @@ function App() {
 
 
 export default App;
-
-

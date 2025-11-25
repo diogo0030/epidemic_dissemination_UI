@@ -1,6 +1,6 @@
 // src/components/ConfigPanel.tsx
 import { useState } from "react";
-import type { Algorithm, Topology, SimulationConfig } from "../types";
+import type { Algorithm, Topology, SimulationConfig } from "../core/types";
 
 interface Props {
   onStartSimulation: (config: SimulationConfig) => void;
