@@ -71,14 +71,50 @@
   margin-bottom: 8px;
 }
 
-.graph-controls button {
+.graph-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.icon-button {
   border: none;
   background: transparent;
   font-size: 18px;
-  padding: 4px 6px;
-  color: #bbb;
-  cursor: default;
+  padding: 4px 8px;
+  color: #9ca3af;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease,
+    transform 0.05s ease;
 }
+
+.icon-button:not(:disabled):hover {
+  background-color: #e0f2fe;
+  color: #2563eb;
+}
+
+.icon-button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+/* estado "ativo" quando está em play */
+.icon-button--active {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+
+/* opcional: pausa com look diferente quando está pronta a pausar */
+.icon-button--idle {
+  color: #4b5563;
+}
+
+.icon-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+  background: transparent;
+}
+
+
 
 /* script gerado */
 .script-box {
