@@ -46,6 +46,41 @@ function generateTreeNodes(n: number): NodeData[] {
   return nodes;
 }
 
+// Layout estrela: nó 0 no centro, outros à volta
+function generateStarNodes(n: number): NodeData[] {
+  const cx = 250;
+  const cy = 215;
+  const radius = 160;
+
+  const nodes: NodeData[] = [];
+
+  // 1. Nó 0 no centro
+  nodes.push({
+    id: 0,
+    x: cx,
+    y: cy,
+    state: "SUSCEPTIBLE",
+  });
+
+  if (n <= 1) return nodes;
+
+  // 2. Restantes (1..n-1) em círculo
+  const remaining = n - 1;
+  for (let i = 1; i < n; i++) {
+    // distribuir uniformemente
+    // i vai de 1 a n-1. Queremos angulos baseados em 0..(remaining-1)
+    const angle = (2 * Math.PI * (i - 1)) / remaining;
+    nodes.push({
+      id: i,
+      x: cx + radius * Math.cos(angle),
+      y: cy + radius * Math.sin(angle),
+      state: "SUSCEPTIBLE",
+    });
+  }
+
+  return nodes;
+}
+
 /**
  * Funções de layout que só calculam x,y para cada topologia.
  * As arestas (edges) são tratadas noutro lado.
@@ -53,9 +88,11 @@ function generateTreeNodes(n: number): NodeData[] {
 export function layoutNodes(topology: Topology, n: number): NodeData[] {
   switch (topology) {
     case "ring":
-    case "star":
     case "random":
       return generateCircularNodes(n);
+
+    case "star":
+      return generateStarNodes(n);
 
     case "bus":
       // linha horizontal (tipo bus)
