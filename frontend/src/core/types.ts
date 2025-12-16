@@ -28,3 +28,11 @@ export interface GraphResponse {
   nodes: { id: number }[];
   edges: { from: number; to: number }[];
 }
+
+export interface MessageRun {
+  id: string;           // ex: "msg-1", "A", "42"...
+  label: string;        // texto da tab, ex: "Mensagem 1"
+  nodes: NodeData[];    // cópia do array de NodeData para esta mensagem
+  round: number;        // número de rondas já feitas
+  messages: number;     // nº de mensagens enviadas nesta simulação
+}
