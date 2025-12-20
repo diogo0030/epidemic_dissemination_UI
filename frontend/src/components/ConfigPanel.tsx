@@ -1,6 +1,6 @@
 // src/components/ConfigPanel.tsx
 import { useState } from "react";
-import type { Algorithm, Topology, SimulationConfig } from "../core/types";
+import type { Algorithm, Topology, SimulationConfig, DisseminationMode } from "../core/types";
 
 interface Props {
   onStartSimulation: (config: SimulationConfig) => void;
@@ -10,6 +10,7 @@ export function ConfigPanel({ onStartSimulation }: Props) {
   const [topology, setTopology] = useState<Topology>("ring");
   const [nodeCount, setNodeCount] = useState(10);
   const [algorithm, setAlgorithm] = useState<Algorithm>("gossip");
+  const [mode, setMode] = useState<DisseminationMode>("push");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,6 +20,7 @@ export function ConfigPanel({ onStartSimulation }: Props) {
       topology,
       nodeCount,
       algorithm,
+      mode,
     });
   };
 
@@ -61,6 +63,19 @@ export function ConfigPanel({ onStartSimulation }: Props) {
           >
             <option value="gossip">Gossip</option>
             <option value="anti_entropy">Anti-entropy</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Modo</label>
+          <select
+            className="form-control"
+            value={mode}
+            onChange={(e) => setMode(e.target.value as DisseminationMode)}
+          >
+            <option value="push">Push</option>
+            <option value="pull">Pull</option>
+            <option value="push_pull">Push and Pull</option>
           </select>
         </div>
 

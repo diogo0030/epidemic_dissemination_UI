@@ -1,6 +1,8 @@
 // src/types.ts
 export type Algorithm = "gossip" | "anti_entropy";
 
+export type DisseminationMode = "push" | "pull" | "push_pull";
+
 export type Topology = "ring" | "star" | "tree" | "bus" | "random";
 
 export type NodeState = "SUSCEPTIBLE" | "INFECTIVE" | "REMOVED";
@@ -9,6 +11,7 @@ export interface SimulationConfig {
   topology: Topology;
   nodeCount: number;
   algorithm: Algorithm;
+  mode: DisseminationMode;
 }
 
 export interface NodeData {

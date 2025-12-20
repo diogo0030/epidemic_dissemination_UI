@@ -6,5 +6,6 @@ export function buildScript(config: SimulationConfig): string {
     `TOPOLOGY ${config.topology}`,
     `NODES ${config.nodeCount}`,
     `ALGORITHM ${config.algorithm}`,
+    `MODE ${config.mode}`,
   ].join("\n");
 }
