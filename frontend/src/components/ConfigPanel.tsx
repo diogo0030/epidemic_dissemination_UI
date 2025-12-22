@@ -9,6 +9,7 @@ interface Props {
 export function ConfigPanel({ onStartSimulation }: Props) {
   const [topology, setTopology] = useState<Topology>("ring");
   const [nodeCount, setNodeCount] = useState(10);
+  const [sourceNodeCount, setSourceNodeCount] = useState(1);
   const [algorithm, setAlgorithm] = useState<Algorithm>("gossip");
   const [mode, setMode] = useState<DisseminationMode>("push");
 
@@ -19,6 +20,7 @@ export function ConfigPanel({ onStartSimulation }: Props) {
     onStartSimulation({
       topology,
       nodeCount,
+      sourceNodeCount,
       algorithm,
       mode,
     });
@@ -51,6 +53,18 @@ export function ConfigPanel({ onStartSimulation }: Props) {
             min={1}
             value={nodeCount}
             onChange={(e) => setNodeCount(Number(e.target.value))}
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Número de Nós Fontes</label>
+          <input
+            className="form-control"
+            type="number"
+            min={1}
+            max={nodeCount}
+            value={sourceNodeCount}
+            onChange={(e) => setSourceNodeCount(Number(e.target.value))}
           />
         </div>
 

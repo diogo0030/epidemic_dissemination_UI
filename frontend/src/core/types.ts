@@ -12,6 +12,7 @@ export interface SimulationConfig {
   nodeCount: number;
   algorithm: Algorithm;
   mode: DisseminationMode;
+  sourceNodeCount: number;
 }
 
 export interface NodeData {

@@ -2,10 +2,7 @@
 import type { SimulationConfig } from "./types";
 
 export function buildScript(config: SimulationConfig): string {
-  return [
-    `TOPOLOGY ${config.topology}`,
-    `NODES ${config.nodeCount}`,
-    `ALGORITHM ${config.algorithm}`,
-    `MODE ${config.mode}`,
-  ].join("\n");
+  // UI_start|<Port>|<Count>|<Sources>|<Topology>|<Algorithm>|<Mode>
+  const address = typeof window !== "undefined" ? (window.location.port || "80") : "0";
+  return `UI_start|${address}|${config.nodeCount}|${config.sourceNodeCount}|${config.topology}|${config.algorithm}|${config.mode}`;
 }
