@@ -5,23 +5,21 @@ import { ConfigPanel } from "./components/ConfigPanel";
 import { GraphView } from "./components/GraphView";
 import { MetricsPanel } from "./components/MetricsPanel";
 import type {
-  NodeData,
   EdgeData,
   SimulationConfig,
   Algorithm,
 } from "./core/types";
 import { requestTopology } from "./services/topologyService";
 import {
-  infectInitialNodes,
   simulateOneRound,
 } from "./core/simulation";
+import type { MessageRun, NodeData } from "./core/types";
+import { TabBar } from "./components/TabBar";
 
 function App() {
-  const [nodes, setNodes] = useState<NodeData[]>([]);
+  const [messageRuns, setMessageRuns] = useState<MessageRun[]>([]);
+  const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [edges, setEdges] = useState<EdgeData[]>([]);
-  const [round, setRound] = useState(0);
-  const [messages, setMessages] = useState(0);
-  const [informed, setInformed] = useState(0);
   const [totalNodes, setTotalNodes] = useState(0);
   const [currentAlgorithm, setCurrentAlgorithm] =
     useState<Algorithm | null>(null);
@@ -30,14 +28,14 @@ function App() {
 
   // refs para o play automático
   const playIntervalRef = useRef<number | null>(null);
-  const nodesRef = useRef<NodeData[]>([]);
+  const messageRunsRef = useRef<MessageRun[]>([]);
   const edgesRef = useRef<EdgeData[]>([]);
   const totalNodesRef = useRef<number>(0);
 
   // manter refs atualizados
   useEffect(() => {
-    nodesRef.current = nodes;
-  }, [nodes]);
+    messageRunsRef.current = messageRuns;
+  }, [messageRuns]);
 
   useEffect(() => {
     edgesRef.current = edges;
@@ -47,57 +45,75 @@ function App() {
     totalNodesRef.current = totalNodes;
   }, [totalNodes]);
 
-  const canSimulate = !!currentAlgorithm && nodes.length > 0;
+  const canSimulate = !!currentAlgorithm && messageRuns.length > 0;
 
   // START SIMULATION (quando clicas no botão grande "Start")
   const handleStartSimulation = async (config: SimulationConfig) => {
     // parar qualquer animação antiga
     setIsPlaying(false);
 
-    const { nodes, edges } = await requestTopology(config);
+    const { nodes: initialNodes, edges } = await requestTopology(config);
 
-    const infected = infectInitialNodes(nodes);
+    // MOCK: Criar múltiplas mensagens para simular concorrência
+    // Vamos criar "N" runs com base no sourceNodeCount, ou só fixo para demo
+    const newRuns: MessageRun[] = [];
 
-    setNodes(infected);
+
+    // Para simplificar, vamos criar 2 mensagens fictícias agora
+    const runCount = 2;
+
+    for (let i = 0; i < runCount; i++) {
+      // Cada run começa com um deep copy dos nós iniciais limpos
+      const runNodes: NodeData[] = initialNodes.map(n => ({ ...n, state: "SUSCEPTIBLE" }));
+
+      // Infetar o nó de origem desta mensagem (mock: nó 0 para msg 1, nó 1 para msg 2, etc, wrap around)
+      const originId = i % runNodes.length;
+      runNodes[originId].state = "INFECTIVE";
+
+      newRuns.push({
+        id: `msg-${i + 1}`,
+        label: `Mensagem ${i + 1}`,
+        nodes: runNodes,
+        round: 0,
+        messages: 0
+      });
+    }
+
+    setMessageRuns(newRuns);
+    setActiveMessageId(newRuns[0].id);
     setEdges(edges);
-    setRound(0);
-    setMessages(0);
-
-    const informedCount = infected.filter(
-      (n) => n.state !== "SUSCEPTIBLE"
-    ).length;
-    setInformed(informedCount);
     setTotalNodes(config.nodeCount);
     setCurrentAlgorithm(config.algorithm);
   };
 
   // executa UMA ronda
+  // executa UMA ronda para TODAS as mensagens ativas
   const runOneRound = () => {
     if (!currentAlgorithm) return;
-    if (nodesRef.current.length === 0) return;
+    if (messageRunsRef.current.length === 0) return;
 
-    const { nodes: newNodes, messagesSent } = simulateOneRound(
-      nodesRef.current,
-      edgesRef.current,
-      currentAlgorithm
-    );
+    const nextRuns = messageRunsRef.current.map((run) => {
+      // Se esta mensagem já infetou tudos, maybe parar? Mas por agora continua a simular
+      // Verificar se já todos sabem para otimizar? opcional.
 
-    setNodes(newNodes);
-    setRound((r) => r + 1);
-    setMessages((m) => m + messagesSent);
+      const { nodes: newNodes, messagesSent } = simulateOneRound(
+        run.nodes,
+        edgesRef.current,
+        currentAlgorithm
+      );
 
-    const informedCount = newNodes.filter(
-      (n) => n.state !== "SUSCEPTIBLE"
-    ).length;
-    setInformed(informedCount);
+      return {
+        ...run,
+        nodes: newNodes,
+        round: run.round + 1,
+        messages: run.messages + messagesSent
+      };
+    });
 
-    // se já todos informados, para o play
-    if (
-      informedCount === totalNodesRef.current &&
-      totalNodesRef.current > 0
-    ) {
-      setIsPlaying(false);
-    }
+    setMessageRuns(nextRuns);
+
+    // Verificar condicao de paragem global? Só se todas acabarem.
+    // Para simplicidade, deixamos correr ate o user fazer pause.
   };
 
   // PLAY / PAUSE / STEP handlers
@@ -137,6 +153,17 @@ function App() {
     };
   }, [isPlaying, currentAlgorithm]); // depende do estado de play e algoritmo
 
+  // Derived state para a UI baseada na tab ativa
+  const activeRun = messageRuns.find(r => r.id === activeMessageId) || messageRuns[0];
+
+  const displayNodes = activeRun ? activeRun.nodes : [];
+  const displayRound = activeRun ? activeRun.round : 0;
+  const displayMessages = activeRun ? activeRun.messages : 0;
+
+  const displayInformed = activeRun
+    ? activeRun.nodes.filter(n => n.state !== "SUSCEPTIBLE").length
+    : 0;
+
   return (
     <div className="app">
       <header className="app-header">
@@ -152,9 +179,9 @@ function App() {
 
           <div className="panel">
             <MetricsPanel
-              round={round}
-              messages={messages}
-              informed={informed}
+              round={displayRound}
+              messages={displayMessages}
+              informed={displayInformed}
               totalNodes={totalNodes}
             />
           </div>
@@ -177,37 +204,47 @@ function App() {
               </div>
 
               <div className="graph-controls">
-  <button
-    className={`icon-button ${isPlaying ? "icon-button--active" : ""}`}
-    onClick={handlePlay}
-    disabled={isPlaying || !canSimulate}
-  >
-    ▶
-  </button>
-  <button
-    className={`icon-button ${!isPlaying && canSimulate ? "icon-button--idle" : ""}`}
-    onClick={handlePause}
-    disabled={!isPlaying}
-  >
-    ⏸
-  </button>
-  <button
-    className="icon-button"
-    onClick={handleStep}
-    disabled={!canSimulate}
-  >
-    ⏭
-  </button>
-</div>
+                <button
+                  className={`icon-button ${isPlaying ? "icon-button--active" : ""}`}
+                  onClick={handlePlay}
+                  disabled={isPlaying || !canSimulate}
+                >
+                  ▶
+                </button>
+                <button
+                  className={`icon-button ${!isPlaying && canSimulate ? "icon-button--idle" : ""}`}
+                  onClick={handlePause}
+                  disabled={!isPlaying}
+                >
+                  ⏸
+                </button>
+                <button
+                  className="icon-button"
+                  onClick={handleStep}
+                  disabled={!canSimulate}
+                >
+                  ⏭
+                </button>
+              </div>
             </div>
 
+
+
+            {messageRuns.length > 0 && (
+              <TabBar
+                tabs={messageRuns.map(r => ({ id: r.id, label: r.label }))}
+                activeTab={activeMessageId || ""}
+                onTabClick={setActiveMessageId}
+              />
+            )}
+
             <div className="graph-panel-body">
-              <GraphView nodes={nodes} edges={edges} />
+              <GraphView nodes={displayNodes} edges={edges} />
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </main >
+    </div >
   );
 }
 
