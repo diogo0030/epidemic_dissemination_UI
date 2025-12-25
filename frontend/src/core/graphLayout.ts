@@ -4,8 +4,8 @@ import type { NodeData, Topology } from "./types";
 // Nós em círculo – uso para ring, star, random
 function generateCircularNodes(n: number): NodeData[] {
   const cx = 250;
-  const cy = 215;
-  const radius = 160;
+  const cy = 250;
+  const radius = 220;
 
   return Array.from({ length: n }, (_, i) => {
     const angle = (2 * Math.PI * i) / n;
@@ -49,8 +49,8 @@ function generateTreeNodes(n: number): NodeData[] {
 // Layout estrela: nó 0 no centro, outros à volta
 function generateStarNodes(n: number): NodeData[] {
   const cx = 250;
-  const cy = 215;
-  const radius = 160;
+  const cy = 250;
+  const radius = 220;
 
   const nodes: NodeData[] = [];
 
@@ -98,8 +98,8 @@ export function layoutNodes(topology: Topology, n: number): NodeData[] {
       // linha horizontal (tipo bus)
       return Array.from({ length: n }, (_, i) => ({
         id: i,
-        x: 50 + (400 * i) / Math.max(1, n - 1),
-        y: 215,
+        x: 25 + (450 * i) / Math.max(1, n - 1),
+        y: 250,
         state: "SUSCEPTIBLE",
       }));
 

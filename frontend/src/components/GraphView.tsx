@@ -20,6 +20,18 @@ export function GraphView({ nodes, edges }: Props) {
     }
   };
 
+  // Calcular raio dinâmico
+  const count = nodes.length;
+  // Perímetro aproximado para r=220 é 2*PI*220 ~= 1380px
+  // Queremos que N bolas caibam no perímetro sem tocar.
+  // Formula: (Perimetro / N) / 2.5 (fator de folga)
+  // Max 16px, Min 2px
+  const circumference = 1380;
+  const spacePerNode = circumference / (count > 0 ? count : 1);
+  const dynamicRadius = Math.max(2, Math.min(16, spacePerNode / 2.5));
+
+  const showLabel = dynamicRadius >= 10;
+
   return (
     <svg
       className="graph-svg"
@@ -42,6 +54,7 @@ export function GraphView({ nodes, edges }: Props) {
             x2={to.x}
             y2={to.y}
             stroke="#e2e8f0"
+            strokeWidth={1}
           />
         );
       })}
@@ -52,19 +65,25 @@ export function GraphView({ nodes, edges }: Props) {
           <circle
             cx={n.x}
             cy={n.y}
-            r={16}
+            r={dynamicRadius}
             fill={stateColor(n.state)}
             stroke="#64748b"
-          />
-          <text
-            x={n.x}
-            y={n.y + 4}
-            textAnchor="middle"
-            fontSize="12"
-            fill="#0f172a"
+            strokeWidth={dynamicRadius < 6 ? 0.5 : 1}
           >
-            {n.id}
-          </text>
+            <title>Node {n.id} ({n.state})</title>
+          </circle>
+          {showLabel && (
+            <text
+              x={n.x}
+              y={n.y + dynamicRadius / 3}
+              textAnchor="middle"
+              fontSize={dynamicRadius * 0.8}
+              fill="#0f172a"
+              style={{ pointerEvents: "none" }}
+            >
+              {n.id}
+            </text>
+          )}
         </g>
       ))}
     </svg>
