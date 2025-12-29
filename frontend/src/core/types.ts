@@ -15,11 +15,19 @@ export interface SimulationConfig {
   sourceNodeCount: number;
 }
 
+export interface StoredMessage {
+  subject: string;
+  timestamp: number;
+  sourceId: number;
+  round: number;
+}
+
 export interface NodeData {
   id: number;
   x: number;
   y: number;
   state: NodeState;
+  storedMessages: StoredMessage[];
 }
 
 export interface EdgeData {

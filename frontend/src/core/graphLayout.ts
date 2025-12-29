@@ -14,6 +14,7 @@ function generateCircularNodes(n: number): NodeData[] {
       x: cx + radius * Math.cos(angle),
       y: cy + radius * Math.sin(angle),
       state: "SUSCEPTIBLE",
+      storedMessages: [],
     };
   });
 }
@@ -39,6 +40,7 @@ function generateTreeNodes(n: number): NodeData[] {
         x: gap * (idx + 1),
         y: 60 + levelHeight * level,
         state: "SUSCEPTIBLE",
+        storedMessages: [],
       });
     });
   });
@@ -60,6 +62,7 @@ function generateStarNodes(n: number): NodeData[] {
     x: cx,
     y: cy,
     state: "SUSCEPTIBLE",
+    storedMessages: [],
   });
 
   if (n <= 1) return nodes;
@@ -75,6 +78,7 @@ function generateStarNodes(n: number): NodeData[] {
       x: cx + radius * Math.cos(angle),
       y: cy + radius * Math.sin(angle),
       state: "SUSCEPTIBLE",
+      storedMessages: [],
     });
   }
 
@@ -101,6 +105,7 @@ export function layoutNodes(topology: Topology, n: number): NodeData[] {
         x: 25 + (450 * i) / Math.max(1, n - 1),
         y: 250,
         state: "SUSCEPTIBLE",
+        storedMessages: [],
       }));
 
     case "tree":

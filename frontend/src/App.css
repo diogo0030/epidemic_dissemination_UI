@@ -17,9 +17,38 @@
 
 .app-main {
   display: flex;
+  flex-direction: column;
+  /* Stack vertical agora */
   gap: 24px;
   padding: 24px;
+}
+
+.app-top {
+  display: flex;
+  gap: 24px;
+  width: 100%;
   align-items: flex-start;
+}
+
+.app-bottom {
+  display: flex;
+  gap: 24px;
+  width: 100%;
+  /* Height auto para crescer conforme o conteúdo */
+}
+
+.grid-panel {
+  flex: 2;
+  /* Grelha ocupa 2/3 */
+  display: flex;
+  flex-direction: column;
+}
+
+.details-panel {
+  flex: 1;
+  /* Detalhes ocupa 1/3 */
+  display: flex;
+  flex-direction: column;
 }
 
 /* cards genéricos */
@@ -54,7 +83,8 @@
 /* área do grafo: altura fixa e centrada */
 .graph-panel-body {
   margin-top: 8px;
-  height: 520px;              /* ajusta aqui se quiseres maior/menor */
+  height: 520px;
+  /* ajusta aqui se quiseres maior/menor */
   border-radius: 12px;
   background: #f9fafb;
   padding: 8px;
@@ -175,7 +205,8 @@ h2 {
 
 .form-control {
   width: 100%;
-  border-radius: 999px; /* bem arredondado */
+  border-radius: 999px;
+  /* bem arredondado */
   border: 1px solid #d1d5db;
   padding: 8px 12px;
   font-size: 14px;
@@ -224,7 +255,8 @@ h2 {
   max-height: 220px;
   overflow: auto;
   white-space: pre-wrap;
-  color: #111827; /* texto escuro para se ver bem */
+  color: #111827;
+  /* texto escuro para se ver bem */
 }
 
 .metrics-list {
@@ -261,5 +293,3 @@ h2 {
   font-size: 12px;
   font-weight: 500;
 }
-
-

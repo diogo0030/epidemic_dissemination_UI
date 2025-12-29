@@ -1,0 +1,82 @@
+/* src/components/NodeGrid.css */
+.node-grid-container {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    /* Height auto por defeito */
+}
+
+.grid-header {
+    font-weight: 600;
+    color: #475569;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 8px;
+}
+
+.node-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+    /* Sem overflow, cresce com o conteudo */
+    padding: 4px;
+}
+
+.node-grid.compact {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 4px;
+}
+
+/* Card Styles */
+.node-card {
+    border-radius: 6px;
+    padding: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.node-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.node-card.selected {
+    outline: 2px solid #525252;
+    outline-offset: 1px;
+    z-index: 10;
+}
+
+/* State Colors */
+.status-susceptible {
+    background-color: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+
+.status-infective {
+    background-color: #4f83ff;
+    /* Azul do tema (igual ao GraphView) */
+    color: #fff;
+    border-color: #3b82f6;
+}
+
+.status-infective .node-card-id {
+    font-weight: 600;
+}
+
+.status-removed {
+    background-color: #94a3b8;
+    color: #fff;
+}

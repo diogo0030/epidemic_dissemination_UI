@@ -4,9 +4,11 @@ import type { NodeData, EdgeData } from "../core/types";
 interface Props {
   nodes: NodeData[];
   edges: EdgeData[];
+  selectedNodeId: number | null;
+  onNodeClick: (id: number) => void;
 }
 
-export function GraphView({ nodes, edges }: Props) {
+export function GraphView({ nodes, edges, selectedNodeId, onNodeClick }: Props) {
   const stateColor = (state: NodeData["state"]) => {
     switch (state) {
       case "SUSCEPTIBLE":
@@ -60,32 +62,46 @@ export function GraphView({ nodes, edges }: Props) {
       })}
 
       {/* nós */}
-      {nodes.map((n) => (
-        <g key={n.id}>
-          <circle
-            cx={n.x}
-            cy={n.y}
-            r={dynamicRadius}
-            fill={stateColor(n.state)}
-            stroke="#64748b"
-            strokeWidth={dynamicRadius < 6 ? 0.5 : 1}
+      {nodes.map((n) => {
+        const isSelected = selectedNodeId === n.id;
+        return (
+          <g
+            key={n.id}
+            onClick={() => onNodeClick(n.id)}
+            style={{ cursor: "pointer" }}
           >
-            <title>Node {n.id} ({n.state})</title>
-          </circle>
-          {showLabel && (
-            <text
-              x={n.x}
-              y={n.y + dynamicRadius / 3}
-              textAnchor="middle"
-              fontSize={dynamicRadius * 0.8}
-              fill="#0f172a"
-              style={{ pointerEvents: "none" }}
+            {isSelected && (
+              <circle
+                cx={n.x} cy={n.y} r={dynamicRadius + 4}
+                fill="none" stroke="#2563eb" strokeWidth={2} opacity={0.5}
+              />
+            )}
+
+            <circle
+              cx={n.x}
+              cy={n.y}
+              r={dynamicRadius}
+              fill={stateColor(n.state)}
+              stroke={isSelected ? "#2563eb" : "#64748b"}
+              strokeWidth={isSelected ? 2 : (dynamicRadius < 6 ? 0.5 : 1)}
             >
-              {n.id}
-            </text>
-          )}
-        </g>
-      ))}
+              <title>Node {n.id} ({n.state})</title>
+            </circle>
+            {showLabel && (
+              <text
+                x={n.x}
+                y={n.y + dynamicRadius / 3}
+                textAnchor="middle"
+                fontSize={dynamicRadius * 0.8}
+                fill="#0f172a"
+                style={{ pointerEvents: "none" }}
+              >
+                {n.id}
+              </text>
+            )}
+          </g>
+        );
+      })}
     </svg>
   );
 }

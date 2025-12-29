@@ -15,10 +15,13 @@ import {
 } from "./core/simulation";
 import type { MessageRun, NodeData } from "./core/types";
 import { TabBar } from "./components/TabBar";
+import { NodeGrid } from "./components/NodeGrid";
+import { NodeDetails } from "./components/NodeDetails";
 
 function App() {
   const [messageRuns, setMessageRuns] = useState<MessageRun[]>([]);
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [edges, setEdges] = useState<EdgeData[]>([]);
   const [totalNodes, setTotalNodes] = useState(0);
   const [currentAlgorithm, setCurrentAlgorithm] =
@@ -64,11 +67,19 @@ function App() {
 
     for (let i = 0; i < runCount; i++) {
       // Cada run começa com um deep copy dos nós iniciais limpos
-      const runNodes: NodeData[] = initialNodes.map(n => ({ ...n, state: "SUSCEPTIBLE" }));
+      const runNodes: NodeData[] = initialNodes.map(n => ({ ...n, state: "SUSCEPTIBLE", storedMessages: [] }));
 
       // Infetar o nó de origem desta mensagem (mock: nó 0 para msg 1, nó 1 para msg 2, etc, wrap around)
       const originId = i % runNodes.length;
       runNodes[originId].state = "INFECTIVE";
+
+      // MOCK: Adicionar mensagem inicial ao nó origem
+      runNodes[originId].storedMessages.push({
+        subject: `Mock Message ${i + 1}`,
+        sourceId: 999, // Supervisor
+        round: 0,
+        timestamp: Date.now()
+      });
 
       newRuns.push({
         id: `msg-${i + 1}`,
@@ -157,6 +168,29 @@ function App() {
   const activeRun = messageRuns.find(r => r.id === activeMessageId) || messageRuns[0];
 
   const displayNodes = activeRun ? activeRun.nodes : [];
+
+  // Obter o nó selecionado da run ativa (para mostrar no painel de detalhes)
+  // Obter o nó selecionado da run ativa (para mostrar no painel de detalhes)
+  // Mas queremos mostrar as mensagens de TODAS as runs, não só da ativa.
+  let selectedNode: NodeData | null = null;
+
+  if (selectedNodeId !== null && activeRun) {
+    const nodeInActiveRun = activeRun.nodes.find(n => n.id === selectedNodeId);
+    if (nodeInActiveRun) {
+      // Base: nó visual da Tab ativa (para cor/estado)
+      selectedNode = { ...nodeInActiveRun };
+
+      // Agregação: Juntar mensagens de todas as tabs/runs
+      const allMessages = messageRuns.flatMap(run => {
+        const n = run.nodes.find(node => node.id === selectedNodeId);
+        return n ? n.storedMessages : [];
+      });
+
+      // Ordenar por timestamp
+      selectedNode.storedMessages = allMessages.sort((a, b) => a.timestamp - b.timestamp);
+    }
+  }
+
   const displayRound = activeRun ? activeRun.round : 0;
   const displayMessages = activeRun ? activeRun.messages : 0;
 
@@ -171,78 +205,100 @@ function App() {
       </header>
 
       <main className="app-main">
-        {/* Coluna esquerda: Config + Métricas */}
-        <div className="left-column">
-          <div className="panel">
-            <ConfigPanel onStartSimulation={handleStartSimulation} />
-          </div>
-
-          <div className="panel">
-            <MetricsPanel
-              round={displayRound}
-              messages={displayMessages}
-              informed={displayInformed}
-              totalNodes={totalNodes}
-            />
-          </div>
-        </div>
-
-        {/* Coluna direita: Grafo */}
-        <div className="graph-column">
-          <div className="panel graph-panel">
-            <div className="graph-panel-header">
-              <div className="graph-header-left">
-                <h2>Topologia da Rede</h2>
-                {currentAlgorithm && (
-                  <span className="algo-badge">
-                    Algoritmo:&nbsp;
-                    {currentAlgorithm === "gossip"
-                      ? "Gossip"
-                      : "Anti-entropy"}
-                  </span>
-                )}
-              </div>
-
-              <div className="graph-controls">
-                <button
-                  className={`icon-button ${isPlaying ? "icon-button--active" : ""}`}
-                  onClick={handlePlay}
-                  disabled={isPlaying || !canSimulate}
-                >
-                  ▶
-                </button>
-                <button
-                  className={`icon-button ${!isPlaying && canSimulate ? "icon-button--idle" : ""}`}
-                  onClick={handlePause}
-                  disabled={!isPlaying}
-                >
-                  ⏸
-                </button>
-                <button
-                  className="icon-button"
-                  onClick={handleStep}
-                  disabled={!canSimulate}
-                >
-                  ⏭
-                </button>
-              </div>
+        <div className="app-top">
+          {/* Coluna esquerda: Config + Métricas */}
+          <div className="left-column">
+            <div className="panel">
+              <ConfigPanel onStartSimulation={handleStartSimulation} />
             </div>
 
-
-
-            {messageRuns.length > 0 && (
-              <TabBar
-                tabs={messageRuns.map(r => ({ id: r.id, label: r.label }))}
-                activeTab={activeMessageId || ""}
-                onTabClick={setActiveMessageId}
+            <div className="panel">
+              <MetricsPanel
+                round={displayRound}
+                messages={displayMessages}
+                informed={displayInformed}
+                totalNodes={totalNodes}
               />
-            )}
+            </div>
+          </div>
 
-            <div className="graph-panel-body">
-              <GraphView nodes={displayNodes} edges={edges} />
+          {/* Coluna direita: Grafo */}
+          <div className="graph-column">
+            <div className="panel graph-panel">
+              <div className="graph-panel-header">
+                <div className="graph-header-left">
+                  <h2>Topologia da Rede</h2>
+                  {currentAlgorithm && (
+                    <span className="algo-badge">
+                      Algoritmo:&nbsp;
+                      {currentAlgorithm === "gossip"
+                        ? "Gossip"
+                        : "Anti-entropy"}
+                    </span>
+                  )}
+                </div>
+
+                <div className="graph-controls">
+                  <button
+                    className={`icon-button ${isPlaying ? "icon-button--active" : ""}`}
+                    onClick={handlePlay}
+                    disabled={isPlaying || !canSimulate}
+                  >
+                    ▶
+                  </button>
+                  <button
+                    className={`icon-button ${!isPlaying && canSimulate ? "icon-button--idle" : ""}`}
+                    onClick={handlePause}
+                    disabled={!isPlaying}
+                  >
+                    ⏸
+                  </button>
+                  <button
+                    className="icon-button"
+                    onClick={handleStep}
+                    disabled={!canSimulate}
+                  >
+                    ⏭
+                  </button>
+                </div>
+              </div>
+
+
+              {messageRuns.length > 0 && (
+                <TabBar
+                  tabs={messageRuns.map(r => ({ id: r.id, label: r.label }))}
+                  activeTab={activeMessageId || ""}
+                  onTabClick={setActiveMessageId}
+                />
+              )}
+
+              <div className="graph-panel-body">
+                <GraphView
+                  nodes={displayNodes}
+                  edges={edges}
+                  selectedNodeId={selectedNodeId}
+                  onNodeClick={setSelectedNodeId}
+                />
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Secção inferior: Monitor de Nós */}
+        {messageRuns.length > 0 && (
+          <section className="app-bottom">
+            <div className="panel grid-panel">
+              <NodeGrid
+                nodes={displayNodes}
+                selectedNodeId={selectedNodeId}
+                onNodeSelect={setSelectedNodeId}
+              />
+            </div>
+            <div className="panel details-panel">
+              <NodeDetails node={selectedNode} />
+            </div>
+          </section>
+        )}
       </main >
     </div >
   );
