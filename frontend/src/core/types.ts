@@ -47,4 +47,5 @@ export interface MessageRun {
   nodes: NodeData[];    // cópia do array de NodeData para esta mensagem
   round: number;        // número de rondas já feitas
   messages: number;     // nº de mensagens enviadas nesta simulação
+  history: { round: number; infected: number }[]; // histórico para o gráfico
 }

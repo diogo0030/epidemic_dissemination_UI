@@ -17,11 +17,13 @@ import type { MessageRun, NodeData } from "./core/types";
 import { TabBar } from "./components/TabBar";
 import { NodeGrid } from "./components/NodeGrid";
 import { NodeDetails } from "./components/NodeDetails";
+import { PercentageChart } from "./components/PercentageChart";
 
 function App() {
   const [messageRuns, setMessageRuns] = useState<MessageRun[]>([]);
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+  const [isChartOpen, setIsChartOpen] = useState(false);
   const [edges, setEdges] = useState<EdgeData[]>([]);
   const [totalNodes, setTotalNodes] = useState(0);
   const [currentAlgorithm, setCurrentAlgorithm] =
@@ -81,12 +83,16 @@ function App() {
         timestamp: Date.now()
       });
 
+      // Inicializar histórico com o estado atual (1 infetado)
+      const initialInfected = 1;
+
       newRuns.push({
         id: `msg-${i + 1}`,
         label: `Mensagem ${i + 1}`,
         nodes: runNodes,
         round: 0,
-        messages: 0
+        messages: 0,
+        history: [{ round: 0, infected: initialInfected }]
       });
     }
 
@@ -113,11 +119,15 @@ function App() {
         currentAlgorithm
       );
 
+      // Calcular infetados nesta run
+      const infectedCount = newNodes.filter(n => n.state !== ("SUSCEPTIBLE" as any)).length;
+
       return {
         ...run,
         nodes: newNodes,
         round: run.round + 1,
-        messages: run.messages + messagesSent
+        messages: run.messages + messagesSent,
+        history: [...run.history, { round: run.round + 1, infected: infectedCount }]
       };
     });
 
@@ -218,6 +228,7 @@ function App() {
                 messages={displayMessages}
                 informed={displayInformed}
                 totalNodes={totalNodes}
+                onViewProgress={() => setIsChartOpen(true)}
               />
             </div>
           </div>
@@ -300,6 +311,14 @@ function App() {
           </section>
         )}
       </main >
+      {/* Modal do Gráfico */}
+      {/* Exibe dados da run ativa */}
+      <PercentageChart
+        isOpen={isChartOpen}
+        onClose={() => setIsChartOpen(false)}
+        data={activeRun ? activeRun.history : []}
+        totalNodes={totalNodes}
+      />
     </div >
   );
 }

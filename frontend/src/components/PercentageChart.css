@@ -1,0 +1,58 @@
+/* src/components/PercentageChart.css */
+.chart-modal {
+    border: none;
+    border-radius: 12px;
+    padding: 0;
+    background: transparent;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.chart-modal::backdrop {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+}
+
+.chart-container {
+    background: white;
+    width: 700px;
+    max-width: 90vw;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.chart-header h3 {
+    margin: 0;
+    color: #1e293b;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #64748b;
+}
+
+.chart-body {
+    height: 350px;
+    width: 100%;
+    margin-bottom: 16px;
+}
+
+.chart-footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #64748b;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 12px;
+}

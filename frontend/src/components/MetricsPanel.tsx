@@ -4,12 +4,18 @@ interface Props {
   messages: number;
   informed: number;
   totalNodes: number;
+  onViewProgress: () => void;
 }
 
-export function MetricsPanel({ round, messages, informed, totalNodes }: Props) {
+export function MetricsPanel({ round, messages, informed, totalNodes, onViewProgress }: Props) {
   return (
     <>
-      <h2>Métricas</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2>Métricas</h2>
+        <button className="icon-button" onClick={onViewProgress} title="View Graph">
+          📈
+        </button>
+      </div>
       <div className="metrics-list">
         <div className="metrics-row">
           <span>Ronds:</span>
