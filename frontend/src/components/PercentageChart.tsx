@@ -97,7 +97,7 @@ export function PercentageChart({ data, totalNodes, isOpen, onClose }: Props) {
                     </svg>
                 </div>
                 <div className="chart-footer">
-                    <span>Rorunds: {maxRound}</span>
+                    <span>Rounds: {maxRound}</span>
                     <span>Total Infected: {data.length > 0 ? data[data.length - 1].infected : 0} / {totalNodes}</span>
                 </div>
             </div>

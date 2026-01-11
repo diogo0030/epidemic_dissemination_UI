@@ -1,14 +1,15 @@
 
-import type { NodeData, EdgeData } from "../core/types";
+import type { NodeData, EdgeData, Topology } from "../core/types";
 
 interface Props {
   nodes: NodeData[];
   edges: EdgeData[];
   selectedNodeId: number | null;
+  currentTopology: Topology | null;
   onNodeClick: (id: number) => void;
 }
 
-export function GraphView({ nodes, edges, selectedNodeId, onNodeClick }: Props) {
+export function GraphView({ nodes, edges, selectedNodeId, currentTopology, onNodeClick }: Props) {
   const stateColor = (state: NodeData["state"]) => {
     switch (state) {
       case "SUSCEPTIBLE":
@@ -33,6 +34,14 @@ export function GraphView({ nodes, edges, selectedNodeId, onNodeClick }: Props) 
   const dynamicRadius = Math.max(2, Math.min(16, spacePerNode / 2.5));
 
   const showLabel = dynamicRadius >= 10;
+  const isBus = currentTopology === "bus";
+
+  // Calculate dynamic backbone Y position for Bus topology
+  // Base Y comes from nodes (fixed at 200 in layout, but let's be dynamic)
+  const busBaseY = nodes.length > 0 ? nodes[0].y : 200;
+  // Gap scales STRICTLY with node size (no fixed constant)
+  // Length from center = 3x Radius. Stub length = 2x Radius.
+  const backboneY = busBaseY + dynamicRadius * 3;
 
   return (
     <svg
@@ -43,8 +52,32 @@ export function GraphView({ nodes, edges, selectedNodeId, onNodeClick }: Props) 
       preserveAspectRatio="xMidYMid meet"
       style={{ borderRadius: 12 }}
     >
-      {/* arestas */}
-      {edges.map((e, idx) => {
+      {/* Visualização BUS: Backbone + Stubs */}
+      {isBus && nodes.length > 0 && (
+        <g className="bus-visuals">
+          {/* Backbone Line */}
+          <line
+            x1={20} y1={backboneY}
+            x2={480} y2={backboneY}
+            stroke="#e2e8f0"
+            strokeWidth={3}
+            strokeLinecap="round"
+          />
+          {/* Stubs (Vertical lines from node to backbone) */}
+          {nodes.map(n => (
+            <line
+              key={`stub-${n.id}`}
+              x1={n.x} y1={n.y}
+              x2={n.x} y2={backboneY}
+              stroke="#e2e8f0"
+              strokeWidth={1}
+            />
+          ))}
+        </g>
+      )}
+
+      {/* arestas (Standard) - Ocultar no BUS para não duplicar visual */}
+      {!isBus && edges.map((e, idx) => {
         const from = nodes.find((n) => n.id === e.from);
         const to = nodes.find((n) => n.id === e.to);
         if (!from || !to) return null;

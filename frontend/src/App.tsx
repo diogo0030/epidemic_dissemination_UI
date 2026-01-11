@@ -8,6 +8,7 @@ import type {
   EdgeData,
   SimulationConfig,
   Algorithm,
+  Topology,
 } from "./core/types";
 import { requestTopology } from "./services/topologyService";
 import {
@@ -28,8 +29,12 @@ function App() {
   const [totalNodes, setTotalNodes] = useState(0);
   const [currentAlgorithm, setCurrentAlgorithm] =
     useState<Algorithm | null>(null);
+  const [currentTopology, setCurrentTopology] = useState<Topology | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
+  // ... (rest of code)
+
+
 
   // refs para o play automático
   const playIntervalRef = useRef<number | null>(null);
@@ -59,8 +64,8 @@ function App() {
 
     const { nodes: initialNodes, edges } = await requestTopology(config);
 
-    // MOCK: Criar múltiplas mensagens para simular concorrência
-    // Vamos criar "N" runs com base no sourceNodeCount, ou só fixo para demo
+    // MOCK: Create multiple messages to simulate concurrency
+    // We will create "N" runs based on sourceNodeCount, or just fixed for demo
     const newRuns: MessageRun[] = [];
 
 
@@ -88,7 +93,7 @@ function App() {
 
       newRuns.push({
         id: `msg-${i + 1}`,
-        label: `Mensagem ${i + 1}`,
+        label: `Message ${i + 1}`,
         nodes: runNodes,
         round: 0,
         messages: 0,
@@ -101,6 +106,7 @@ function App() {
     setEdges(edges);
     setTotalNodes(config.nodeCount);
     setCurrentAlgorithm(config.algorithm);
+    setCurrentTopology(config.topology);
   };
 
   // executa UMA ronda
@@ -238,10 +244,10 @@ function App() {
             <div className="panel graph-panel">
               <div className="graph-panel-header">
                 <div className="graph-header-left">
-                  <h2>Topologia da Rede</h2>
+                  <h2>Network Topology</h2>
                   {currentAlgorithm && (
                     <span className="algo-badge">
-                      Algoritmo:&nbsp;
+                      Algorithm:&nbsp;
                       {currentAlgorithm === "gossip"
                         ? "Gossip"
                         : "Anti-entropy"}
@@ -288,6 +294,7 @@ function App() {
                   nodes={displayNodes}
                   edges={edges}
                   selectedNodeId={selectedNodeId}
+                  currentTopology={currentTopology}
                   onNodeClick={setSelectedNodeId}
                 />
               </div>
@@ -295,7 +302,7 @@ function App() {
           </div>
         </div>
 
-        {/* Secção inferior: Monitor de Nós */}
+        {/* Bottom Section: Node Monitor */}
         {messageRuns.length > 0 && (
           <section className="app-bottom">
             <div className="panel grid-panel">

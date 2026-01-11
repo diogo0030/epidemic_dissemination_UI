@@ -28,10 +28,10 @@ export function ConfigPanel({ onStartSimulation }: Props) {
 
   return (
     <>
-      <h2>Configuração da Simulação</h2>
+      <h2>Simulation Configuration</h2>
       <form onSubmit={handleSubmit} className="config-form">
         <div className="form-group">
-          <label className="form-label">Topologia</label>
+          <label className="form-label">Topology</label>
           <select
             className="form-control"
             value={topology}
@@ -46,7 +46,7 @@ export function ConfigPanel({ onStartSimulation }: Props) {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Número de nós</label>
+          <label className="form-label">Node Count</label>
           <input
             className="form-control"
             type="number"
@@ -57,7 +57,7 @@ export function ConfigPanel({ onStartSimulation }: Props) {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Número de Nós Fontes</label>
+          <label className="form-label">Source Node Count</label>
           <input
             className="form-control"
             type="number"
@@ -69,7 +69,7 @@ export function ConfigPanel({ onStartSimulation }: Props) {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Algoritmo de Disseminação</label>
+          <label className="form-label">Dissemination Algorithm</label>
           <select
             className="form-control"
             value={algorithm}
@@ -81,7 +81,7 @@ export function ConfigPanel({ onStartSimulation }: Props) {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Modo</label>
+          <label className="form-label">Mode</label>
           <select
             className="form-control"
             value={mode}

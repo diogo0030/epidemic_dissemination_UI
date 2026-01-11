@@ -27,8 +27,11 @@ export function generateMockGraph(
     }
 
     case "bus": {
-      for (let i = 0; i < n - 1; i++) {
-        edges.push({ from: i, to: i + 1 });
+      // Barramento: todos comunicam com todos (Broadcast)
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          edges.push({ from: i, to: j });
+        }
       }
       break;
     }

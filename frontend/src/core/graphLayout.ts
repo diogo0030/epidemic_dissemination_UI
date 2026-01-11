@@ -103,7 +103,7 @@ export function layoutNodes(topology: Topology, n: number): NodeData[] {
       return Array.from({ length: n }, (_, i) => ({
         id: i,
         x: 25 + (450 * i) / Math.max(1, n - 1),
-        y: 250,
+        y: 200,
         state: "SUSCEPTIBLE",
         storedMessages: [],
       }));
