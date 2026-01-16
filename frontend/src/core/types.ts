@@ -49,3 +49,58 @@ export interface MessageRun {
   messages: number;     // nº de mensagens enviadas nesta simulação
   history: { round: number; infected: number }[]; // histórico para o gráfico
 }
+
+export interface SupervisorStartMessage {
+  direction: "ui_to_supervisor";
+  messageType: "start";
+  addr: string;
+  N: number;
+  sourceNodes: number;
+  topology: Topology;
+  protocol: "gossip" | "anti-entropy";
+  mode: DisseminationMode;
+}
+
+export interface SupervisorEndMessage {
+  direction: "ui_to_supervisor";
+  messageType: "end";
+}
+
+// Inbound Messages (Supervisor -> UI)
+
+export interface SupervisorNodeDef {
+  id: number;
+  neighbors: number[];
+  subject?: string;
+}
+
+export interface SupervisorStructuralMessage {
+  direction: "supervisor_to_ui";
+  messageType: "structural_infos";
+  nodes: SupervisorNodeDef[];
+}
+
+export interface SupervisorInfectionMessage {
+  direction: "supervisor_to_ui";
+  messageType: "infection_update";
+  updated_node_id: number;
+  infecting_node_id: number;
+  subject: string;
+  sourceId: number;
+  timestamp: number;
+  data?: any;
+}
+
+export interface SupervisorRemotionMessage {
+  direction: "supervisor_to_ui";
+  messageType: "remotion_update";
+  updated_node_id: number;
+  subject: string;
+  sourceId: number;
+  timestamp: number;
+}
+
+export type SupervisorMessage =
+  | SupervisorStructuralMessage
+  | SupervisorInfectionMessage
+  | SupervisorRemotionMessage;

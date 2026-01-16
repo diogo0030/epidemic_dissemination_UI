@@ -1,0 +1,94 @@
+[
+    {
+        "direction": "supervisor_to_ui",
+        "messageType": "structural_infos",
+        "nodes": [
+            {
+                "id": 0,
+                "neighbors": [
+                    1,
+                    2
+                ],
+                "subject": "risk_alert"
+            },
+            {
+                "id": 1,
+                "neighbors": [
+                    0,
+                    3,
+                    4
+                ]
+            },
+            {
+                "id": 2,
+                "neighbors": [
+                    0,
+                    4
+                ]
+            },
+            {
+                "id": 3,
+                "neighbors": [
+                    1
+                ]
+            },
+            {
+                "id": 4,
+                "neighbors": [
+                    1,
+                    2
+                ]
+            }
+        ]
+    },
+    {
+        "delay": 1000,
+        "direction": "supervisor_to_ui",
+        "messageType": "infection_update",
+        "updated_node_id": 1,
+        "infecting_node_id": 0,
+        "subject": "risk_alert",
+        "sourceId": 0,
+        "timestamp": 1700000001,
+        "data": "Warning level 1"
+    },
+    {
+        "delay": 800,
+        "direction": "supervisor_to_ui",
+        "messageType": "infection_update",
+        "updated_node_id": 2,
+        "infecting_node_id": 0,
+        "subject": "risk_alert",
+        "sourceId": 0,
+        "timestamp": 1700000002
+    },
+    {
+        "delay": 800,
+        "direction": "supervisor_to_ui",
+        "messageType": "infection_update",
+        "updated_node_id": 4,
+        "infecting_node_id": 2,
+        "subject": "risk_alert",
+        "sourceId": 0,
+        "timestamp": 1700000003
+    },
+    {
+        "delay": 800,
+        "direction": "supervisor_to_ui",
+        "messageType": "infection_update",
+        "updated_node_id": 3,
+        "infecting_node_id": 1,
+        "subject": "risk_alert",
+        "sourceId": 0,
+        "timestamp": 1700000004
+    },
+    {
+        "delay": 2000,
+        "direction": "supervisor_to_ui",
+        "messageType": "remotion_update",
+        "updated_node_id": 0,
+        "subject": "risk_alert",
+        "sourceId": 0,
+        "timestamp": 1700000010
+    }
+]

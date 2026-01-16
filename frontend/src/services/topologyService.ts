@@ -16,7 +16,7 @@ export async function requestTopology(
   config: SimulationConfig
 ): Promise<TopologyResult> {
   const script = buildScript(config);
-  console.log("Script enviado para a interface:\n", script);
+  console.log("JSON Message enviado para a interface:\n", script);
 
   // ===== MOCK =====
   // Por agora ignoramos o servidor e usamos o grafo local

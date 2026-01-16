@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import "./App.css";
 import { ConfigPanel } from "./components/ConfigPanel";
 import { GraphView } from "./components/GraphView";
@@ -9,12 +9,17 @@ import type {
   SimulationConfig,
   Algorithm,
   Topology,
+  MessageRun,
+  NodeData,
+  SupervisorMessage,
+  SupervisorStructuralMessage,
+  SupervisorInfectionMessage,
+  SupervisorRemotionMessage,
+  NodeState
 } from "./core/types";
 import { requestTopology } from "./services/topologyService";
-import {
-  simulateOneRound,
-} from "./core/simulation";
-import type { MessageRun, NodeData } from "./core/types";
+import { MockSocketService } from "./services/mockSocketService"; // NEW
+import { layoutNodes } from "./core/graphLayout"; // Needed for positioning
 import { TabBar } from "./components/TabBar";
 import { NodeGrid } from "./components/NodeGrid";
 import { NodeDetails } from "./components/NodeDetails";
@@ -25,191 +30,195 @@ function App() {
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [isChartOpen, setIsChartOpen] = useState(false);
+
+  // Visual state
   const [edges, setEdges] = useState<EdgeData[]>([]);
   const [totalNodes, setTotalNodes] = useState(0);
-  const [currentAlgorithm, setCurrentAlgorithm] =
-    useState<Algorithm | null>(null);
-  const [currentTopology, setCurrentTopology] = useState<Topology | null>(null);
+
+  // Config state
+  const [currentAlgorithm, setCurrentAlgorithm] = useState<Algorithm | null>(null);
+  const [currentTopology, setCurrentTopology] = useState<Topology>("ring");
 
   const [isPlaying, setIsPlaying] = useState(false);
-  // ... (rest of code)
 
-
-
-  // refs para o play automático
-  const playIntervalRef = useRef<number | null>(null);
-  const messageRunsRef = useRef<MessageRun[]>([]);
-  const edgesRef = useRef<EdgeData[]>([]);
-  const totalNodesRef = useRef<number>(0);
-
-  // manter refs atualizados
-  useEffect(() => {
-    messageRunsRef.current = messageRuns;
-  }, [messageRuns]);
-
-  useEffect(() => {
-    edgesRef.current = edges;
-  }, [edges]);
-
-  useEffect(() => {
-    totalNodesRef.current = totalNodes;
-  }, [totalNodes]);
-
-  const canSimulate = !!currentAlgorithm && messageRuns.length > 0;
-
-  // START SIMULATION (quando clicas no botão grande "Start")
+  // START SIMULATION
   const handleStartSimulation = async (config: SimulationConfig) => {
-    // parar qualquer animação antiga
-    setIsPlaying(false);
+    // 0. Resetar estado anterior se existir
+    handleStop();
+    setMessageRuns([]);
+    setEdges([]);
+    setTotalNodes(0);
+    setActiveMessageId(null);
+    setSelectedNodeId(null);
 
-    const { nodes: initialNodes, edges } = await requestTopology(config);
-
-    // MOCK: Create multiple messages to simulate concurrency
-    // We will create "N" runs based on sourceNodeCount, or just fixed for demo
-    const newRuns: MessageRun[] = [];
-
-
-    // Para simplificar, vamos criar 2 mensagens fictícias agora
-    const runCount = 2;
-
-    for (let i = 0; i < runCount; i++) {
-      // Cada run começa com um deep copy dos nós iniciais limpos
-      const runNodes: NodeData[] = initialNodes.map(n => ({ ...n, state: "SUSCEPTIBLE", storedMessages: [] }));
-
-      // Infetar o nó de origem desta mensagem (mock: nó 0 para msg 1, nó 1 para msg 2, etc, wrap around)
-      const originId = i % runNodes.length;
-      runNodes[originId].state = "INFECTIVE";
-
-      // MOCK: Adicionar mensagem inicial ao nó origem
-      runNodes[originId].storedMessages.push({
-        subject: `Mock Message ${i + 1}`,
-        sourceId: 999, // Supervisor
-        round: 0,
-        timestamp: Date.now()
-      });
-
-      // Inicializar histórico com o estado atual (1 infetado)
-      const initialInfected = 1;
-
-      newRuns.push({
-        id: `msg-${i + 1}`,
-        label: `Message ${i + 1}`,
-        nodes: runNodes,
-        round: 0,
-        messages: 0,
-        history: [{ round: 0, infected: initialInfected }]
-      });
-    }
-
-    setMessageRuns(newRuns);
-    setActiveMessageId(newRuns[0].id);
-    setEdges(edges);
-    setTotalNodes(config.nodeCount);
+    setIsPlaying(true);
     setCurrentAlgorithm(config.algorithm);
-    setCurrentTopology(config.topology);
+    setCurrentTopology(config.topology); // Guardar para saber o layout
+
+    // 1. Enviar mensagem de INTENÇÃO de inicio (log apenas por enquanto)
+    await requestTopology(config);
+
+    // 2. Conectar ao Mock Socket para começar a receber eventos
+    MockSocketService.getInstance().connect();
   };
 
-  // executa UMA ronda
-  // executa UMA ronda para TODAS as mensagens ativas
-  const runOneRound = () => {
-    if (!currentAlgorithm) return;
-    if (messageRunsRef.current.length === 0) return;
+  // STOP 
+  const handleStop = () => {
+    setIsPlaying(false);
+    MockSocketService.getInstance().disconnect();
+  };
 
-    const nextRuns = messageRunsRef.current.map((run) => {
-      // Se esta mensagem já infetou tudos, maybe parar? Mas por agora continua a simular
-      // Verificar se já todos sabem para otimizar? opcional.
+  // Socket Event Handler
+  useEffect(() => {
+    const unsubscribe = MockSocketService.getInstance().subscribe((msg: SupervisorMessage) => {
+      handleSupervisorMessage(msg);
+    });
+    return () => unsubscribe();
+  }, [currentTopology]); // Re-bind se a topologia mudar (necessário para layout?)
 
-      const { nodes: newNodes, messagesSent } = simulateOneRound(
-        run.nodes,
-        edgesRef.current,
-        currentAlgorithm
-      );
+  const handleSupervisorMessage = (msg: SupervisorMessage) => {
+    switch (msg.messageType) {
+      case "structural_infos":
+        handleStructuralInfos(msg);
+        break;
+      case "infection_update":
+        handleInfectionUpdate(msg);
+        break;
+      case "remotion_update":
+        handleRemotionUpdate(msg);
+        break;
+    }
+  };
 
-      // Calcular infetados nesta run
-      const infectedCount = newNodes.filter(n => n.state !== ("SUSCEPTIBLE" as any)).length;
+  const handleStructuralInfos = (msg: SupervisorStructuralMessage) => {
+    const nodeCount = msg.nodes.length;
+    setTotalNodes(nodeCount);
 
+    // 1. Calcular arestas a partir da lista de vizinhos
+    const newEdges: EdgeData[] = [];
+    // Usar um set para evitar duplicados se o backend mandar redundante (0->1 e 1->0)
+    const seenEdges = new Set<string>();
+
+    msg.nodes.forEach(n => {
+      n.neighbors.forEach(neighId => {
+        // Normalizar chave "min-max" para não duplicar
+        const from = Math.min(n.id, neighId);
+        const to = Math.max(n.id, neighId);
+        const key = `${from}-${to}`;
+        if (!seenEdges.has(key)) {
+          seenEdges.add(key);
+          newEdges.push({ from, to });
+        }
+      });
+    });
+    setEdges(newEdges);
+
+    // 2. Calcular posições (Layout)
+    // O backend não manda X,Y, então usamos o nosso layout generator
+    const layout = layoutNodes(currentTopology || "ring", nodeCount);
+
+    // 3. Criar os nós iniciais misturando o layout com os dados do supervisor
+    const initialNodes: NodeData[] = msg.nodes.map((n) => {
+      const pos = layout.find(l => l.id === n.id) || { x: 0, y: 0 };
+      const state: NodeState = n.subject ? "INFECTIVE" : "SUSCEPTIBLE";
       return {
-        ...run,
-        nodes: newNodes,
-        round: run.round + 1,
-        messages: run.messages + messagesSent,
-        history: [...run.history, { round: run.round + 1, infected: infectedCount }]
+        id: n.id,
+        x: pos.x,
+        y: pos.y,
+        state: state,
+        storedMessages: n.subject ? [{
+          subject: n.subject,
+          sourceId: -1,
+          round: 0,
+          timestamp: Date.now()
+        }] : []
       };
     });
 
-    setMessageRuns(nextRuns);
-
-    // Verificar condicao de paragem global? Só se todas acabarem.
-    // Para simplicidade, deixamos correr ate o user fazer pause.
-  };
-
-  // PLAY / PAUSE / STEP handlers
-  const handlePlay = () => {
-    if (!canSimulate) return;
-    setIsPlaying(true);
-  };
-
-  const handlePause = () => {
-    setIsPlaying(false);
-  };
-
-  const handleStep = () => {
-    runOneRound();
-  };
-
-  // gerir o setInterval do Play
-  useEffect(() => {
-    if (isPlaying) {
-      // 800ms por ronda (ajusta à vontade)
-      playIntervalRef.current = window.setInterval(() => {
-        runOneRound();
-      }, 800);
-    } else {
-      if (playIntervalRef.current !== null) {
-        clearInterval(playIntervalRef.current);
-        playIntervalRef.current = null;
-      }
-    }
-
-    // limpar ao desmontar componente
-    return () => {
-      if (playIntervalRef.current !== null) {
-        clearInterval(playIntervalRef.current);
-        playIntervalRef.current = null;
-      }
+    // 4. Criar a "Run" base
+    const newRun: MessageRun = {
+      id: "supervisor-run",
+      label: "Live Simulation",
+      nodes: initialNodes,
+      round: 0,
+      messages: 0,
+      history: [{ round: 0, infected: initialNodes.filter(n => n.state === "INFECTIVE").length }]
     };
-  }, [isPlaying, currentAlgorithm]); // depende do estado de play e algoritmo
 
-  // Derived state para a UI baseada na tab ativa
-  const activeRun = messageRuns.find(r => r.id === activeMessageId) || messageRuns[0];
+    setMessageRuns([newRun]);
+    setActiveMessageId(newRun.id);
+  };
 
-  const displayNodes = activeRun ? activeRun.nodes : [];
+  const handleInfectionUpdate = (msg: SupervisorInfectionMessage) => {
+    setMessageRuns(prev => {
+      // Atualizar APENAS a run "live"
+      // Num cenário real poderiamos ter ID da run na mensagem
+      const runIndex = prev.findIndex(r => r.id === "supervisor-run");
+      if (runIndex === -1) return prev;
 
-  // Obter o nó selecionado da run ativa (para mostrar no painel de detalhes)
-  // Obter o nó selecionado da run ativa (para mostrar no painel de detalhes)
-  // Mas queremos mostrar as mensagens de TODAS as runs, não só da ativa.
-  let selectedNode: NodeData | null = null;
-
-  if (selectedNodeId !== null && activeRun) {
-    const nodeInActiveRun = activeRun.nodes.find(n => n.id === selectedNodeId);
-    if (nodeInActiveRun) {
-      // Base: nó visual da Tab ativa (para cor/estado)
-      selectedNode = { ...nodeInActiveRun };
-
-      // Agregação: Juntar mensagens de todas as tabs/runs
-      const allMessages = messageRuns.flatMap(run => {
-        const n = run.nodes.find(node => node.id === selectedNodeId);
-        return n ? n.storedMessages : [];
+      const run = prev[runIndex];
+      const newNodes = run.nodes.map(n => {
+        if (n.id === msg.updated_node_id) {
+          const newState: NodeState = "INFECTIVE";
+          return {
+            ...n,
+            state: newState,
+            storedMessages: [...n.storedMessages, {
+              subject: msg.subject,
+              sourceId: msg.sourceId,
+              round: 0, // Backend não manda round aqui?
+              timestamp: msg.timestamp
+            }]
+          };
+        }
+        return n;
       });
 
-      // Ordenar por timestamp
-      selectedNode.storedMessages = allMessages.sort((a, b) => a.timestamp - b.timestamp);
-    }
+      // Recalcular stats
+      const infectedCount = newNodes.filter(n => n.state !== ("SUSCEPTIBLE" as NodeState)).length;
+
+      return [
+        {
+          ...run,
+          nodes: newNodes,
+          messages: run.messages + 1,
+          history: [...run.history, { round: run.history.length, infected: infectedCount }]
+        }
+      ];
+    });
+  };
+
+  const handleRemotionUpdate = (msg: SupervisorRemotionMessage) => {
+    setMessageRuns(prev => {
+      const runIndex = prev.findIndex(r => r.id === "supervisor-run");
+      if (runIndex === -1) return prev;
+
+      const run = prev[runIndex];
+      const newNodes = run.nodes.map(n => {
+        if (n.id === msg.updated_node_id) {
+          const newState: NodeState = "REMOVED";
+          return { ...n, state: newState };
+        }
+        return n;
+      });
+
+      return [{ ...run, nodes: newNodes }];
+    });
+  };
+
+  // ... (manter resto da UI) ...
+
+  const activeRun = messageRuns.find(r => r.id === activeMessageId) || messageRuns[0];
+  const displayNodes = activeRun ? activeRun.nodes : [];
+
+  // Recalculo do nó selecionado
+  let selectedNode: NodeData | null = null;
+  if (selectedNodeId !== null && activeRun) {
+    selectedNode = activeRun.nodes.find(n => n.id === selectedNodeId) || null;
   }
 
-  const displayRound = activeRun ? activeRun.round : 0;
+  const displayRound = activeRun ? activeRun.history.length : 0; // Usar length do historico como proxy de tempo
   const displayMessages = activeRun ? activeRun.messages : 0;
-
   const displayInformed = activeRun
     ? activeRun.nodes.filter(n => n.state !== "SUSCEPTIBLE").length
     : 0;
@@ -222,7 +231,6 @@ function App() {
 
       <main className="app-main">
         <div className="app-top">
-          {/* Coluna esquerda: Config + Métricas */}
           <div className="left-column">
             <div className="panel">
               <ConfigPanel onStartSimulation={handleStartSimulation} />
@@ -239,7 +247,6 @@ function App() {
             </div>
           </div>
 
-          {/* Coluna direita: Grafo */}
           <div className="graph-column">
             <div className="panel graph-panel">
               <div className="graph-panel-header">
@@ -253,29 +260,27 @@ function App() {
                         : "Anti-entropy"}
                     </span>
                   )}
+                  <span className="algo-badge" style={{ marginLeft: '10px', backgroundColor: isPlaying ? '#2ecc71' : '#e74c3c' }}>
+                    {isPlaying ? "● LIVE" : "○ STOPPED"}
+                  </span>
                 </div>
 
                 <div className="graph-controls">
+                  {/* Simplificar controlos para STOP apenas */}
                   <button
                     className={`icon-button ${isPlaying ? "icon-button--active" : ""}`}
-                    onClick={handlePlay}
-                    disabled={isPlaying || !canSimulate}
+                    onClick={() => { }}
+                    disabled={true}
+                    title="Controlled by Supervisor"
                   >
                     ▶
                   </button>
                   <button
-                    className={`icon-button ${!isPlaying && canSimulate ? "icon-button--idle" : ""}`}
-                    onClick={handlePause}
-                    disabled={!isPlaying}
-                  >
-                    ⏸
-                  </button>
-                  <button
                     className="icon-button"
-                    onClick={handleStep}
-                    disabled={!canSimulate}
+                    onClick={handleStop}
+                    title="Stop / Disconnect"
                   >
-                    ⏭
+                    ⏹
                   </button>
                 </div>
               </div>
@@ -302,7 +307,6 @@ function App() {
           </div>
         </div>
 
-        {/* Bottom Section: Node Monitor */}
         {messageRuns.length > 0 && (
           <section className="app-bottom">
             <div className="panel grid-panel">
@@ -318,8 +322,7 @@ function App() {
           </section>
         )}
       </main >
-      {/* Modal do Gráfico */}
-      {/* Exibe dados da run ativa */}
+
       <PercentageChart
         isOpen={isChartOpen}
         onClose={() => setIsChartOpen(false)}
