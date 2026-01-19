@@ -10,8 +10,9 @@ export function ConfigPanel({ onStartSimulation }: Props) {
   const [topology, setTopology] = useState<Topology>("ring");
   const [nodeCount, setNodeCount] = useState(10);
   const [sourceNodeCount, setSourceNodeCount] = useState(1);
-  const [algorithm, setAlgorithm] = useState<Algorithm>("gossip");
+  const [algorithm, setAlgorithm] = useState<Algorithm>("gossip_blind_coin");
   const [mode, setMode] = useState<DisseminationMode>("push");
+  const [deployment, setDeployment] = useState<"local" | "distributed">("local");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +24,7 @@ export function ConfigPanel({ onStartSimulation }: Props) {
       sourceNodeCount,
       algorithm,
       mode,
+      deployment,
     });
   };
 
@@ -39,9 +41,8 @@ export function ConfigPanel({ onStartSimulation }: Props) {
           >
             <option value="ring">Ring</option>
             <option value="star">Star</option>
-            <option value="tree">Tree</option>
-            <option value="bus">Bus</option>
-            <option value="random">Random</option>
+            <option value="full mesh">Full Mesh</option>
+            <option value="partial mesh">Partial Mesh</option>
           </select>
         </div>
 
@@ -75,7 +76,8 @@ export function ConfigPanel({ onStartSimulation }: Props) {
             value={algorithm}
             onChange={(e) => setAlgorithm(e.target.value as Algorithm)}
           >
-            <option value="gossip">Gossip</option>
+            <option value="gossip_blind_coin">Gossip Blind Coin</option>
+            <option value="gossip_feedback_coin">Gossip Feedback Coin</option>
             <option value="anti_entropy">Anti-entropy</option>
           </select>
         </div>
@@ -89,7 +91,19 @@ export function ConfigPanel({ onStartSimulation }: Props) {
           >
             <option value="push">Push</option>
             <option value="pull">Pull</option>
-            <option value="push_pull">Push and Pull</option>
+            <option value="pushpull">Push and Pull</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Deployment</label>
+          <select
+            className="form-control"
+            value={deployment}
+            onChange={(e) => setDeployment(e.target.value as "local" | "distributed")}
+          >
+            <option value="local">Local</option>
+            <option value="distributed">Distributed</option>
           </select>
         </div>
 

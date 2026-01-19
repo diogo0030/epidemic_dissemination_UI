@@ -1,8 +1,8 @@
 // src/App.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./App.css";
 import { ConfigPanel } from "./components/ConfigPanel";
-import { GraphView } from "./components/GraphView";
+import { NetworkGraph } from "./components/NetworkGraph";
 import { MetricsPanel } from "./components/MetricsPanel";
 import type {
   EdgeData,
@@ -13,13 +13,14 @@ import type {
   NodeData,
   SupervisorMessage,
   SupervisorStructuralMessage,
+  SupervisorStartMessage,
   SupervisorInfectionMessage,
   SupervisorRemotionMessage,
+  SupervisorStartRoundMessage,
   NodeState
 } from "./core/types";
-import { requestTopology } from "./services/topologyService";
-import { MockSocketService } from "./services/mockSocketService"; // NEW
-import { layoutNodes } from "./core/graphLayout"; // Needed for positioning
+import { SupervisorService } from "./services/SupervisorService";
+import { layoutNodes } from "./core/graphLayout";
 import { TabBar } from "./components/TabBar";
 import { NodeGrid } from "./components/NodeGrid";
 import { NodeDetails } from "./components/NodeDetails";
@@ -41,10 +42,38 @@ function App() {
 
   const [isPlaying, setIsPlaying] = useState(false);
 
+  // Create a ref for the handler to ensure the subscription always calls the latest version (avoiding stale closures)
+  const handleSupervisorMessageRef = useRef<(msg: SupervisorMessage) => void>(() => { });
+
+  // Update the ref on every render
+  useEffect(() => {
+    handleSupervisorMessageRef.current = handleSupervisorMessage;
+  });
+
+  // Connect on mount
+  useEffect(() => {
+    SupervisorService.getInstance().connect();
+    // Subscribe to messages using the ref
+    const unsubscribe = SupervisorService.getInstance().subscribe((msg: SupervisorMessage) => {
+      try {
+        if (handleSupervisorMessageRef.current) {
+          handleSupervisorMessageRef.current(msg);
+        }
+      } catch (err) {
+        console.error("Error handling Supervisor message:", err);
+      }
+    });
+    return () => {
+      console.log("App Unmounting - Disconnecting Service");
+      unsubscribe();
+      SupervisorService.getInstance().disconnect();
+    };
+  }, []);
+
   // START SIMULATION
   const handleStartSimulation = async (config: SimulationConfig) => {
-    // 0. Resetar estado anterior se existir
-    handleStop();
+    // 0. Reset previous state
+    handleStop(); // Stop local UI state
     setMessageRuns([]);
     setEdges([]);
     setTotalNodes(0);
@@ -53,28 +82,33 @@ function App() {
 
     setIsPlaying(true);
     setCurrentAlgorithm(config.algorithm);
-    setCurrentTopology(config.topology); // Guardar para saber o layout
+    setCurrentTopology(config.topology);
 
-    // 1. Enviar mensagem de INTENÇÃO de inicio (log apenas por enquanto)
-    await requestTopology(config);
+    // 1. Send START message to Supervisor via WebSocket
+    if (!config.topology) return;
 
-    // 2. Conectar ao Mock Socket para começar a receber eventos
-    MockSocketService.getInstance().connect();
+    const startMsg: SupervisorStartMessage = {
+      direction: "ui_to_supervisor",
+      messageType: "start_system",
+      addr: "127.0.0.1:0", // Backend Address.parse requires "IP:Port" format
+      N: config.nodeCount,
+      sourceNodes: config.sourceNodeCount,
+      topology: config.topology,
+      protocol: config.algorithm,
+      mode: config.mode,
+      deployment: config.deployment
+    };
+
+    console.log("Sending START:", startMsg);
+    SupervisorService.getInstance().sendCommand(startMsg);
   };
 
   // STOP 
   const handleStop = () => {
     setIsPlaying(false);
-    MockSocketService.getInstance().disconnect();
+    // Optional: Send STOP message to backend?
+    // SupervisorService.getInstance().sendCommand({ ... end msg ... });
   };
-
-  // Socket Event Handler
-  useEffect(() => {
-    const unsubscribe = MockSocketService.getInstance().subscribe((msg: SupervisorMessage) => {
-      handleSupervisorMessage(msg);
-    });
-    return () => unsubscribe();
-  }, [currentTopology]); // Re-bind se a topologia mudar (necessário para layout?)
 
   const handleSupervisorMessage = (msg: SupervisorMessage) => {
     switch (msg.messageType) {
@@ -87,21 +121,29 @@ function App() {
       case "remotion_update":
         handleRemotionUpdate(msg);
         break;
+      case "start_round":
+        handleStartRound(msg);
+        break;
     }
   };
 
+  // Store base layout for spawning new runs
+  const [baseNodes, setBaseNodes] = useState<NodeData[]>([]);
+
   const handleStructuralInfos = (msg: SupervisorStructuralMessage) => {
+    console.log("Received Structural Infos:", msg);
     const nodeCount = msg.nodes.length;
     setTotalNodes(nodeCount);
 
-    // 1. Calcular arestas a partir da lista de vizinhos
     const newEdges: EdgeData[] = [];
-    // Usar um set para evitar duplicados se o backend mandar redundante (0->1 e 1->0)
     const seenEdges = new Set<string>();
 
+    // Identify all unique subjects in the initial configuration
+    const subjects = new Set<string>();
     msg.nodes.forEach(n => {
+      if (n.subject) subjects.add(n.subject);
+
       n.neighbors.forEach(neighId => {
-        // Normalizar chave "min-max" para não duplicar
         const from = Math.min(n.id, neighId);
         const to = Math.max(n.id, neighId);
         const key = `${from}-${to}`;
@@ -113,84 +155,167 @@ function App() {
     });
     setEdges(newEdges);
 
-    // 2. Calcular posições (Layout)
-    // O backend não manda X,Y, então usamos o nosso layout generator
+    // For layout, we use our generator since backend doesn't send coords
     const layout = layoutNodes(currentTopology || "ring", nodeCount);
 
-    // 3. Criar os nós iniciais misturando o layout com os dados do supervisor
+    // Create base nodes (SUSCEPTIBLE)
     const initialNodes: NodeData[] = msg.nodes.map((n) => {
       const pos = layout.find(l => l.id === n.id) || { x: 0, y: 0 };
-      const state: NodeState = n.subject ? "INFECTIVE" : "SUSCEPTIBLE";
       return {
         id: n.id,
         x: pos.x,
         y: pos.y,
-        state: state,
-        storedMessages: n.subject ? [{
-          subject: n.subject,
-          sourceId: -1,
-          round: 0,
-          timestamp: Date.now()
-        }] : []
+        state: "SUSCEPTIBLE",
+        storedMessages: []
       };
     });
+    setBaseNodes(initialNodes);
 
-    // 4. Criar a "Run" base
-    const newRun: MessageRun = {
-      id: "supervisor-run",
-      label: "Live Simulation",
-      nodes: initialNodes,
-      round: 0,
-      messages: 0,
-      history: [{ round: 0, infected: initialNodes.filter(n => n.state === "INFECTIVE").length }]
-    };
+    // Create initial runs for each detected subject
+    const initialRuns: MessageRun[] = [];
+    if (subjects.size > 0) {
+      subjects.forEach(subj => {
+        // Clone base nodes and apply initial infection for this subject
+        const runNodes = initialNodes.map(n => {
+          const originalNode = msg.nodes.find(on => on.id === n.id);
+          if (originalNode && originalNode.subject === subj) {
+            return {
+              ...n,
+              state: "INFECTIVE" as NodeState,
+              storedMessages: [{
+                subject: subj,
+                sourceId: -1,
+                round: 0,
+                timestamp: Date.now()
+              }]
+            };
+          }
+          return n;
+        });
 
-    setMessageRuns([newRun]);
-    setActiveMessageId(newRun.id);
+        initialRuns.push({
+          id: `${subj}-${msg.nodes.find(n => n.subject === subj)?.id ?? '?'}`,
+          label: `${subj} (Source: ${msg.nodes.find(n => n.subject === subj)?.id ?? '?'})`,
+          nodes: runNodes,
+          round: 0,
+          messages: 0,
+          history: [{ round: 0, infected: runNodes.filter(n => n.state === "INFECTIVE").length }]
+        });
+      });
+    } else {
+      // Fallback if no subject yet (just graph structure)
+      initialRuns.push({
+        id: "default",
+        label: "Topology View",
+        nodes: initialNodes,
+        round: 0,
+        messages: 0,
+        history: [{ round: 0, infected: 0 }]
+      });
+    }
+
+    setMessageRuns(initialRuns);
+    setActiveMessageId(initialRuns[0].id);
   };
 
   const handleInfectionUpdate = (msg: SupervisorInfectionMessage) => {
-    setMessageRuns(prev => {
-      // Atualizar APENAS a run "live"
-      // Num cenário real poderiamos ter ID da run na mensagem
-      const runIndex = prev.findIndex(r => r.id === "supervisor-run");
-      if (runIndex === -1) return prev;
+    // console.log("Infection Update:", msg);
 
-      const run = prev[runIndex];
-      const newNodes = run.nodes.map(n => {
+    setMessageRuns(prevRuns => {
+      // Use Subject + SourceID to identify the Run uniquely
+      const runId = `${msg.subject}-${msg.sourceId}`;
+
+      let runIndex = prevRuns.findIndex(r => r.id === runId);
+      let runToUpdate: MessageRun;
+
+      if (runIndex === -1) {
+        // New subject appeared! Create a new run/separator
+        // console.log("New Subject detected:", runId);
+
+        // Use baseNodes if available, otherwise try to clone from existing (risky if existing is dirty)
+        // We really should use the clean baseNodes state.
+        const base = baseNodes.length > 0 ? baseNodes : (prevRuns[0]?.nodes.map(n => ({ ...n, state: 'SUSCEPTIBLE' as NodeState, storedMessages: [] })) || []);
+
+        runToUpdate = {
+          id: runId,
+          label: `${msg.subject} (Source: ${msg.sourceId})`,
+          nodes: base,
+          round: 0,
+          messages: 0,
+          history: [{ round: 0, infected: 0 }]
+        };
+        // We will append this new run
+      } else {
+        runToUpdate = prevRuns[runIndex];
+      }
+
+      // Update nodes in this run
+      const newNodes = runToUpdate.nodes.map(n => {
         if (n.id === msg.updated_node_id) {
-          const newState: NodeState = "INFECTIVE";
+          // Only update if not already infective (or strictly follow logic)
+          // But we must add the message to history regardless
+          // const alreadyInfected = n.state === "INFECTIVE";
+          // Preserve REMOVED state if already removed
+          const newState: NodeState = n.state === "REMOVED" ? "REMOVED" : "INFECTIVE";
+
           return {
             ...n,
             state: newState,
             storedMessages: [...n.storedMessages, {
               subject: msg.subject,
               sourceId: msg.sourceId,
-              round: 0, // Backend não manda round aqui?
-              timestamp: msg.timestamp
+              round: runToUpdate.round,
+              timestamp: msg.timestamp,
+              data: msg.data
             }]
           };
         }
         return n;
       });
 
-      // Recalcular stats
       const infectedCount = newNodes.filter(n => n.state !== ("SUSCEPTIBLE" as NodeState)).length;
 
-      return [
-        {
-          ...run,
-          nodes: newNodes,
-          messages: run.messages + 1,
-          history: [...run.history, { round: run.history.length, infected: infectedCount }]
-        }
-      ];
+      const updatedRun = {
+        ...runToUpdate,
+        nodes: newNodes,
+        messages: runToUpdate.messages + 1,
+        history: [...runToUpdate.history, { round: runToUpdate.history.length, infected: infectedCount }]
+      };
+
+      if (runIndex === -1) {
+        // Append new run
+        // If we had a default empty run, maybe replace it if it has 0 infections? 
+        // User asked for "separators for each new id", so appending is safer purely for visualization.
+        return [...prevRuns, updatedRun];
+      } else {
+        // Update existing run
+        const newRuns = [...prevRuns];
+        newRuns[runIndex] = updatedRun;
+        return newRuns;
+      }
+    });
+  };
+
+  const handleStartRound = (msg: SupervisorStartRoundMessage) => {
+    // console.log("Round Started:", msg);
+    setMessageRuns(prev => {
+      // If we have no runs, we can't really track rounds per message run yet unless we have a global counter
+      // But we will iterate all runs and increment their round counter
+      if (prev.length === 0) return prev;
+
+      return prev.map(run => ({
+        ...run,
+        round: run.round + 1,
+        // Update history with current infection state for this new round
+        history: [...run.history, { round: run.history.length + 1, infected: run.nodes.filter(n => n.state === "INFECTIVE").length }]
+      }));
     });
   };
 
   const handleRemotionUpdate = (msg: SupervisorRemotionMessage) => {
     setMessageRuns(prev => {
-      const runIndex = prev.findIndex(r => r.id === "supervisor-run");
+      const runId = `${msg.subject}-${msg.sourceId}`;
+      const runIndex = prev.findIndex(r => r.id === runId);
       if (runIndex === -1) return prev;
 
       const run = prev[runIndex];
@@ -202,22 +327,21 @@ function App() {
         return n;
       });
 
-      return [{ ...run, nodes: newNodes }];
+      const newRuns = [...prev];
+      newRuns[runIndex] = { ...run, nodes: newNodes };
+      return newRuns;
     });
   };
-
-  // ... (manter resto da UI) ...
 
   const activeRun = messageRuns.find(r => r.id === activeMessageId) || messageRuns[0];
   const displayNodes = activeRun ? activeRun.nodes : [];
 
-  // Recalculo do nó selecionado
   let selectedNode: NodeData | null = null;
   if (selectedNodeId !== null && activeRun) {
     selectedNode = activeRun.nodes.find(n => n.id === selectedNodeId) || null;
   }
 
-  const displayRound = activeRun ? activeRun.history.length : 0; // Usar length do historico como proxy de tempo
+  const displayRound = activeRun ? activeRun.history.length : 0;
   const displayMessages = activeRun ? activeRun.messages : 0;
   const displayInformed = activeRun
     ? activeRun.nodes.filter(n => n.state !== "SUSCEPTIBLE").length
@@ -251,13 +375,10 @@ function App() {
             <div className="panel graph-panel">
               <div className="graph-panel-header">
                 <div className="graph-header-left">
-                  <h2>Network Topology</h2>
+                  <h2>Network Visualization</h2>
                   {currentAlgorithm && (
                     <span className="algo-badge">
-                      Algorithm:&nbsp;
-                      {currentAlgorithm === "gossip"
-                        ? "Gossip"
-                        : "Anti-entropy"}
+                      {currentAlgorithm ? currentAlgorithm.replace(/_/g, ' ').toUpperCase() : ''}
                     </span>
                   )}
                   <span className="algo-badge" style={{ marginLeft: '10px', backgroundColor: isPlaying ? '#2ecc71' : '#e74c3c' }}>
@@ -266,25 +387,15 @@ function App() {
                 </div>
 
                 <div className="graph-controls">
-                  {/* Simplificar controlos para STOP apenas */}
-                  <button
-                    className={`icon-button ${isPlaying ? "icon-button--active" : ""}`}
-                    onClick={() => { }}
-                    disabled={true}
-                    title="Controlled by Supervisor"
-                  >
-                    ▶
-                  </button>
                   <button
                     className="icon-button"
                     onClick={handleStop}
-                    title="Stop / Disconnect"
+                    title="Stop Simulation"
                   >
                     ⏹
                   </button>
                 </div>
               </div>
-
 
               {messageRuns.length > 0 && (
                 <TabBar
@@ -295,7 +406,7 @@ function App() {
               )}
 
               <div className="graph-panel-body">
-                <GraphView
+                <NetworkGraph
                   nodes={displayNodes}
                   edges={edges}
                   selectedNodeId={selectedNodeId}
@@ -321,7 +432,7 @@ function App() {
             </div>
           </section>
         )}
-      </main >
+      </main>
 
       <PercentageChart
         isOpen={isChartOpen}
@@ -329,7 +440,7 @@ function App() {
         data={activeRun ? activeRun.history : []}
         totalNodes={totalNodes}
       />
-    </div >
+    </div>
   );
 }
 

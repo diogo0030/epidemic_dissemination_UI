@@ -1,9 +1,9 @@
 // src/types.ts
-export type Algorithm = "gossip" | "anti_entropy";
+export type Algorithm = "gossip_blind_coin" | "gossip_feedback_coin" | "anti_entropy";
 
-export type DisseminationMode = "push" | "pull" | "push_pull";
+export type DisseminationMode = "push" | "pull" | "pushpull";
 
-export type Topology = "ring" | "star" | "tree" | "bus" | "random";
+export type Topology = "ring" | "star" | "full mesh" | "partial mesh";
 
 export type NodeState = "SUSCEPTIBLE" | "INFECTIVE" | "REMOVED";
 
@@ -12,6 +12,7 @@ export interface SimulationConfig {
   nodeCount: number;
   algorithm: Algorithm;
   mode: DisseminationMode;
+  deployment: "local" | "distributed";
   sourceNodeCount: number;
 }
 
@@ -20,6 +21,7 @@ export interface StoredMessage {
   timestamp: number;
   sourceId: number;
   round: number;
+  data?: any;
 }
 
 export interface NodeData {
@@ -52,18 +54,19 @@ export interface MessageRun {
 
 export interface SupervisorStartMessage {
   direction: "ui_to_supervisor";
-  messageType: "start";
+  messageType: "start_system";
   addr: string;
   N: number;
   sourceNodes: number;
   topology: Topology;
-  protocol: "gossip" | "anti-entropy";
+  protocol: Algorithm;
   mode: DisseminationMode;
+  deployment: "local" | "distributed";
 }
 
 export interface SupervisorEndMessage {
   direction: "ui_to_supervisor";
-  messageType: "end";
+  messageType: "end_system";
 }
 
 // Inbound Messages (Supervisor -> UI)
@@ -100,7 +103,13 @@ export interface SupervisorRemotionMessage {
   timestamp: number;
 }
 
+export interface SupervisorStartRoundMessage {
+  direction: "supervisor_to_ui";
+  messageType: "start_round";
+}
+
 export type SupervisorMessage =
   | SupervisorStructuralMessage
   | SupervisorInfectionMessage
-  | SupervisorRemotionMessage;
+  | SupervisorRemotionMessage
+  | SupervisorStartRoundMessage;

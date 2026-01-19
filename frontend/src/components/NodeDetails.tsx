@@ -10,7 +10,7 @@ export function NodeDetails({ node }: Props) {
     if (!node) {
         return (
             <div className="node-details-empty">
-                <p>Selecione um nó para ver os detalhes</p>
+                <p>Select a node to view details</p>
             </div>
         );
     }
@@ -46,13 +46,14 @@ export function NodeDetails({ node }: Props) {
                             <th>Subject</th>
                             <th>Source ID</th>
                             <th>Round</th>
+                            <th>Data</th>
                             <th>Time</th>
                         </tr>
                     </thead>
                     <tbody>
                         {node.storedMessages.length === 0 ? (
                             <tr>
-                                <td colSpan={4} className="empty-row">No messages stored.</td>
+                                <td colSpan={5} className="empty-row">No messages stored.</td>
                             </tr>
                         ) : (
                             node.storedMessages.map((msg, idx) => (
@@ -60,7 +61,8 @@ export function NodeDetails({ node }: Props) {
                                     <td>{msg.subject}</td>
                                     <td>{msg.sourceId}</td>
                                     <td>{msg.round}</td>
-                                    <td>{msg.timestamp}</td>
+                                    <td>{msg.data !== undefined ? String(msg.data) : "-"}</td>
+                                    <td>{msg.timestamp > 0 ? new Date(msg.timestamp).toLocaleTimeString() : "-"}</td>
                                 </tr>
                             ))
                         )}
