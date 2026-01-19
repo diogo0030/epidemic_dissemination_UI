@@ -67,12 +67,27 @@ export function PercentageChart({ data, totalNodes, isOpen, onClose }: Props) {
 
                         {/* Grid Lines Y (25%, 50%, 75%, 100%) */}
                         {[0.25, 0.5, 0.75, 1].map(p => {
-                            const y = yScale(maxInfected * p);
+                            const val = Math.round(maxInfected * p);
+                            const y = yScale(val);
                             return (
                                 <g key={p}>
                                     <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#f0f0f0" strokeDasharray="4" />
                                     <text x={padding - 10} y={y + 4} textAnchor="end" fontSize="10" fill="#999">
-                                        {Math.round(p * 100)}%
+                                        {val}
+                                    </text>
+                                </g>
+                            );
+                        })}
+
+                        {/* Grid Lines X (0%, 25%, 50%, 75%, 100%) */}
+                        {[0, 0.25, 0.5, 0.75, 1].map(p => {
+                            const val = Math.round(maxRound * p);
+                            const x = xScale(val);
+                            return (
+                                <g key={`x-${p}`}>
+                                    <line x1={x} y1={height - padding} x2={x} y2={padding} stroke="#f0f0f0" strokeDasharray="4" />
+                                    <text x={x} y={height - padding + 15} textAnchor="middle" fontSize="10" fill="#999">
+                                        {val}
                                     </text>
                                 </g>
                             );
@@ -81,19 +96,6 @@ export function PercentageChart({ data, totalNodes, isOpen, onClose }: Props) {
                         {/* Linha de dados */}
                         <path d={pathData} fill="none" stroke="#2563eb" strokeWidth="2" />
 
-                        {/* Pontos */}
-                        {data.map((d) => (
-                            <circle
-                                key={d.round}
-                                cx={xScale(d.round)}
-                                cy={yScale(d.infected)}
-                                r="3"
-                                fill="#2563eb"
-                                fillOpacity="0.8"
-                            >
-                                <title>Round {d.round}: {d.infected} infected</title>
-                            </circle>
-                        ))}
                     </svg>
                 </div>
                 <div className="chart-footer">

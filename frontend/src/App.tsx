@@ -273,13 +273,13 @@ function App() {
         return n;
       });
 
-      const infectedCount = newNodes.filter(n => n.state !== ("SUSCEPTIBLE" as NodeState)).length;
+
 
       const updatedRun = {
         ...runToUpdate,
         nodes: newNodes,
         messages: runToUpdate.messages + 1,
-        history: [...runToUpdate.history, { round: runToUpdate.history.length, infected: infectedCount }]
+        history: runToUpdate.history
       };
 
       if (runIndex === -1) {
@@ -307,7 +307,7 @@ function App() {
         ...run,
         round: run.round + 1,
         // Update history with current infection state for this new round
-        history: [...run.history, { round: run.history.length + 1, infected: run.nodes.filter(n => n.state === "INFECTIVE").length }]
+        history: [...run.history, { round: run.round + 1, infected: run.nodes.filter(n => n.state === "INFECTIVE").length }]
       }));
     });
   };
@@ -341,7 +341,7 @@ function App() {
     selectedNode = activeRun.nodes.find(n => n.id === selectedNodeId) || null;
   }
 
-  const displayRound = activeRun ? activeRun.history.length : 0;
+  const displayRound = activeRun ? activeRun.round : 0;
   const displayMessages = activeRun ? activeRun.messages : 0;
   const displayInformed = activeRun
     ? activeRun.nodes.filter(n => n.state !== "SUSCEPTIBLE").length

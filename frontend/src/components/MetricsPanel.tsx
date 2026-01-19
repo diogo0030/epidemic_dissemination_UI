@@ -12,9 +12,6 @@ export function MetricsPanel({ round, messages, informed, totalNodes, onViewProg
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>Metrics</h2>
-        <button className="icon-button" onClick={onViewProgress} title="View Graph">
-          📈
-        </button>
       </div>
       <div className="metrics-list">
         <div className="metrics-row">
@@ -32,6 +29,9 @@ export function MetricsPanel({ round, messages, informed, totalNodes, onViewProg
           </span>
         </div>
       </div>
+      <button className="primary-button" style={{ marginTop: '1rem', width: '100%' }} onClick={onViewProgress}>
+        View Infection Chart
+      </button>
     </>
   );
 }
