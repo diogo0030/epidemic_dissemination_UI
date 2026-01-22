@@ -350,7 +350,7 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Epidemic Dissemination Simulator</h1>
+        <h1>Epidemic Dissemination</h1>
       </header>
 
       <main className="app-main">
@@ -386,15 +386,6 @@ function App() {
                   </span>
                 </div>
 
-                <div className="graph-controls">
-                  <button
-                    className="icon-button"
-                    onClick={handleStop}
-                    title="Stop Simulation"
-                  >
-                    ⏹
-                  </button>
-                </div>
               </div>
 
               {messageRuns.length > 0 && (
